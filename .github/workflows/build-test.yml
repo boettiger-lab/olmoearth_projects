@@ -64,10 +64,10 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_KEY_FOR_OLMOEARTH_RUN_CLONE }}
 
-      - name: Collect Git and SSH config files in a directory that is part of the Docker build context
+      - name: Collect SSH config files in a directory that is part of the Docker build context
         run: |
           mkdir root-config
-          cp -r ~/.gitconfig  ~/.ssh root-config/
+          cp -r  ~/.ssh root-config/
 
       - name: Build and push Docker image
         id: build-push
