@@ -18,14 +18,11 @@ At every 2 by 2 patch it outputs a classifcication of mangrove, water or other
 
 ## Training Data
 
-The model is trained on the Globe-LFMC 2.0 dataset. We use the subset of the data in
-the continental US.
-
-Each sample in the dataset specifies a longitude, latitude, timestamp, fuel type, and
-LFMC value. We only use the woody fuel type subset for this model. For each sample, we
-create an rslearn window centered at the sample's longitude/latitude and with time
-range equal to the 168 days ending at the sample's timestamp. We use rslearn to obtain
-twelve Sentinel-2 and Sentinel-1 images during that time range, with one per 14-day period.
+The model is trained on the
+-what is the datast
+- what is a sample composed of
+- what is the rslearn window composed of
+- how did we split the data
 
 We split the dataset into train, val, and test splits spatially, where 128x128 pixel
 grid cells are assigned via hash to train (70%), val (20%), or test (10%).
