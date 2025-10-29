@@ -300,7 +300,7 @@ data:
         - sample_100K
         names: null
         tags:
-          split: val
+          olmoearth_evals_split: "val"
     test_config:
       class_path: rslearn.train.dataset.SplitConfig
       init_args:
