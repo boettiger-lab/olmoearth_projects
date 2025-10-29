@@ -2,22 +2,21 @@ model:
   class_path: rslearn.train.lightning_module.RslearnLightningModule
   init_args:
     model:
-      class_path: rslearn.models.multitask.MultiTaskModel
+      class_path: rslearn.models.singletask.SingleTaskModel
       init_args:
         encoder:
           - class_path: rslearn.models.olmoearth_pretrain.model.OlmoEarth
             init_args:
               model_id: OLMOEARTH_V1_BASE
               patch_size: 4
-        decoders:
-          value:
-            - class_path: rslearn.models.unet.UNetDecoder
-              init_args:
-                in_channels: [[4, 768]]
-                out_channels: 1
-                conv_layers_per_resolution: 2
-                num_channels: {8: 512, 4: 512, 2: 256, 1: 128}
-            - class_path: rslearn.train.tasks.per_pixel_regression.PerPixelRegressionHead
+        decoder:
+          - class_path: rslearn.models.unet.UNetDecoder
+            init_args:
+              in_channels: [[4, 768]]
+              out_channels: 1
+              conv_layers_per_resolution: 2
+              num_channels: {8: 512, 4: 512, 2: 256, 1: 128}
+          - class_path: rslearn.train.tasks.per_pixel_regression.PerPixelRegressionHead
     lr: 0.00002
     plateau: true
     plateau_factor: 0.2
@@ -45,23 +44,16 @@ data:
         dtype: FLOAT32
         load_all_item_groups: false
         load_all_layers: true
-      label:
+      targets:
         data_type: "raster"
         layers: ["labels"]
         bands: ["value"]
         dtype: FLOAT32
         is_target: true
     task:
-      class_path: rslearn.train.tasks.multi_task.MultiTask
+      class_path: rslearn.train.tasks.per_pixel_regression.PerPixelRegressionTask
       init_args:
-        tasks:
-          value:
-            class_path: rslearn.train.tasks.per_pixel_regression.PerPixelRegressionTask
-            init_args:
-              nodata_value: -1
-        input_mapping:
-          value:
-            label: "targets"
+        nodata_value: -1
     batch_size: 32
     num_workers: ${NUM_WORKERS}
     default_config:
@@ -90,6 +82,9 @@ data:
       overlap_ratio: 0.125  # 4 / 32
       skip_targets: true
       transforms:
+        - class_path: rslearn.train.transforms.sentinel1.Sentinel1ToDecibels
+          init_args:
+            selectors: ["sentinel1"]
         - class_path: rslearn.models.olmoearth_pretrain.norm.OlmoEarthNormalize
           init_args:
             band_names:
@@ -112,7 +107,7 @@ trainer:
         dirpath: ${TRAINER_DATA_PATH}
         save_top_k: 1
         save_last: true
-        monitor: val_value/mse
+        monitor: val_mse
         mode: min
     - class_path: rslearn.train.callbacks.freeze_unfreeze.FreezeUnfreeze
       init_args:
@@ -123,7 +118,6 @@ trainer:
       init_args:
         path: ${DATASET_PATH}
         output_layer: ${PREDICTION_OUTPUT_LAYER}
-        selector: ["value"]
         merger:
           class_path: rslearn.train.prediction_writer.RasterMerger
           init_args:
