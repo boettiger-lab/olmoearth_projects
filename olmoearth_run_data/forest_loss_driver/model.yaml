@@ -96,7 +96,6 @@ data:
       tags:
         split: val
     predict_config:
-      groups: ["default"]
       skip_targets: true
 trainer:
   max_epochs: 100
