@@ -1,12 +1,9 @@
-# FIXME ${TRAINER_DATA_PATH}
-# FIXME ${WANDB_PROJECT}: wandb project for the trainer to log metrics to
-# FIXME ${WANDB_NAME}: wandb name for the trainer to log metrics to
-# FIXME ${WANDB_ENTITY}: wandb entity for the trainer to log metrics to
 model:
-  class_path: rslp.forest_loss_driver.train.ForestLossLightningModule
+#  class_path: olmoearth_projects.train.classification_confusion_matrix.CMLightningModule
+  class_path: rslearn.train.lightning_module.RslearnLightningModule
   init_args:
     model:
-      class_path: rslearn.models.multitask.MultiTaskModel
+      class_path: rslearn.models.singletask.SingleTaskModel
       init_args:
         # We use SimpleTimeSeries not for time series but just to concatenate the
         # feature maps for pre-forest-loss and post-forest-loss.
@@ -14,34 +11,32 @@ model:
           - class_path: rslearn.models.simple_time_series.SimpleTimeSeries
             init_args:
               encoder:
-                class_path: rslp.helios.model.Helios
+                class_path: rslearn.models.olmoearth_pretrain.model.OlmoEarth
                 init_args:
-                  checkpoint_path: gs://earth-system-run-dev/foundation-models/henryh-base_v6.1_add_chm_cdl_worldcereal/step500000
-#                  checkpoint_path: ${EXTRA_FILES_PATH}/helios/step180000
-#                  checkpoint_path: "/weka/dfive-default/helios/checkpoints/henryh/base_v6.1_add_chm_cdl_worldcereal/step500000"
-                  selector: ["encoder"]
-                  forward_kwargs:
-                    patch_size: 4
+                  model_id: OLMOEARTH_V1_BASE
                   patch_size: 4
-                  embedding_size: 768
               image_channels: 48
               image_key: "sentinel2_l2a"
               groups: [[0], [1]]
-        decoders:
-          class:
-            - class_path: rslearn.models.pooling_decoder.PoolingDecoder
-              init_args:
-                in_channels: 1536
-                out_channels: 10
-                num_conv_layers: 1
-                num_fc_layers: 2
-            - class_path: rslearn.train.tasks.classification.ClassificationHead
-    lr: 0.0001
-    plateau: true
-    plateau_factor: 0.2
-    plateau_patience: 2
-    plateau_min_lr: 0
-    plateau_cooldown: 10
+        decoder:
+          - class_path: rslearn.models.pooling_decoder.PoolingDecoder
+            init_args:
+              in_channels: 1536
+              out_channels: 10
+              num_conv_layers: 1
+              num_fc_layers: 2
+          - class_path: rslearn.train.tasks.classification.ClassificationHead
+    scheduler:
+      class_path: rslearn.train.scheduler.PlateauScheduler
+      init_args:
+        factor: 0.2
+        patience: 2
+        min_lr: 0
+        cooldown: 10
+    optimizer:
+      class_path: rslearn.train.optimizer.AdamW
+      init_args:
+        lr: 0.0001
 data:
   class_path: rslearn.train.data_module.RslearnDataModule
   init_args:
@@ -53,26 +48,20 @@ data:
         bands: ["B02", "B03", "B04", "B08", "B05", "B06", "B07", "B8A", "B11", "B12", "B01", "B09"]
         passthrough: true
         load_all_layers: true
-      label:
+      targets:
         data_type: "vector"
         layers: ["label"]
         is_target: true
     task:
-      class_path: rslearn.train.tasks.multi_task.MultiTask
+      class_path: rslearn.train.tasks.classification.ClassificationTask
       init_args:
-        tasks:
-          class:
-            class_path: rslp.forest_loss_driver.train.ForestLossTask
-            init_args:
-              property_name: "new_label"
-              classes: ["agriculture", "mining", "airstrip", "road", "logging", "burned", "landslide", "hurricane", "river", "none"]
-              allow_invalid: true
-              metric_kwargs:
-                average: "micro"
-              prob_property: "probs"
-        input_mapping:
-          class:
-            label: "targets"
+        property_name: "new_label"
+        classes: ["agriculture", "mining", "airstrip", "road", "logging", "burned", "landslide", "hurricane", "river", "none"]
+        allow_invalid: true
+        metric_kwargs:
+          average: "micro"
+        prob_property: "probs"
+        skip_unknown_categories: true
     batch_size: 8
     num_workers: ${NUM_WORKERS}
     default_config:
@@ -83,7 +72,7 @@ data:
             size: 64
             image_selectors:
               - sentinel2_l2a
-        - class_path: rslp.helios.norm.HeliosNormalize
+        - class_path: rslearn.models.olmoearth_pretrain.norm.OlmoEarthNormalize
           init_args:
             band_names:
               sentinel2_l2a: ["B02", "B03", "B04", "B08", "B05", "B06", "B07", "B8A", "B11", "B12", "B01", "B09"]
@@ -97,7 +86,6 @@ data:
             selections:
               sentinel2_l2a: [2, 1, 0]
             output_selector: image
-      groups: ["peru_interesting", "peru3", "peru3_flagged_in_peru", "nadia2", "nadia3", "brazil_interesting"]
     train_config:
       tags:
         split: train
@@ -108,10 +96,15 @@ data:
       tags:
         split: val
     predict_config:
-      groups: ["default"]
       skip_targets: true
 trainer:
   max_epochs: 100
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: ${WANDB_PROJECT}
+      name: ${WANDB_NAME}
+      entity: ${WANDB_ENTITY}
   callbacks:
     - class_path: lightning.pytorch.callbacks.LearningRateMonitor
       init_args:
@@ -119,15 +112,17 @@ trainer:
     - class_path: rslearn.train.callbacks.freeze_unfreeze.FreezeUnfreeze
       init_args:
         module_selector: ["model", "encoder", 0, "encoder", "model"]
-        unfreeze_at_epoch: 5
+        unfreeze_at_epoch: 20
+        unfreeze_lr_factor: 10
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
+        dirpath: ${TRAINER_DATA_PATH}
         save_top_k: 1
         save_last: true
-        monitor: val_class/accuracy
+        monitor: val_accuracy
         mode: max
     - class_path: rslearn.train.prediction_writer.RslearnWriter
       init_args:
         path: ${DATASET_PATH}
         output_layer: ${PREDICTION_OUTPUT_LAYER}
-        selector: ["class"]
+# Not used: ${EXTRA_FILES_PATH}

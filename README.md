@@ -124,7 +124,7 @@ checkpoint. For example:
 
 ```
 mkdir ./checkpoints
-wget https://huggingface.co/allenai/OlmoEarth-v1-Base-FT-LFMC/resolve/main/weights.pth -O checkpoints/lfmc.pth
+wget https://huggingface.co/allenai/OlmoEarth-v1-FT-LFMC-Base/resolve/main/model.ckpt -O checkpoints/lfmc.ckpt
 ```
 
 Set needed environment variables:
@@ -132,14 +132,15 @@ Set needed environment variables:
 ```
 export NUM_WORKERS=32
 export WANDB_PROJECT=lfmc
-export WANDB_NAME=YOUR_WANDB_ENTITY
+export WANDB_NAME=lfmc_inference_run
+export WANDB_ENTITY=YOUR_WANDB_ENTITY
 ```
 
 Then, execute olmoearth_run:
 
 ```
 mkdir ./project_data
-python -m olmoearth_projects.main olmoearth_run olmoearth_run --config_path $PWD/olmoearth_run_data/lfmc/ --checkpoint_path $PWD/checkpoints/lfmc.pth --scratch_path project_data/lfmc/
+python -m olmoearth_projects.main olmoearth_run olmoearth_run --config_path $PWD/olmoearth_run_data/lfmc/ --checkpoint_path $PWD/checkpoints/lfmc.ckpt --scratch_path project_data/lfmc/
 ```
 
 ### Visualizing Outputs
@@ -173,8 +174,8 @@ export DATASET_PATH=/path/to/extracted/data/
 export NUM_WORKERS=32
 export TRAINER_DATA_PATH=./trainer_data
 export PREDICTION_OUTPUT_LAYER=output
-export WANDB_NAME=olmoearth_projects
-export WANDB_PROJECT=my_training_run
+export WANDB_PROJECT=olmoearth_projects
+export WANDB_NAME=my_training_run
 export WANDB_ENTITY=...
 ```
 

@@ -7,9 +7,9 @@ satellite images.
 Here are relevant links for fine-tuning and applying the model per the documentation in
 [the main README](../README.md):
 
-- Model checkpoint: https://huggingface.co/allenai/OlmoEarth-v1-FT-LFMC-Base/blob/main/model.ckpt
-- Annotation GeoJSONs: https://huggingface.co/datasets/allenai/olmoearth_projects_lfmc/tree/main
-- rslearn dataset: https://huggingface.co/datasets/allenai/olmoearth_projects_lfmc/blob/main/dataset.tar
+- Model checkpoint: https://huggingface.co/allenai/OlmoEarth-v1-FT-LFMC-Base/resolve/main/model.ckpt
+- Annotation GeoJSONs: [[annotation_features.geojson](https://storage.googleapis.com/ai2-olmoearth-projects-public-data/projects/lfmc/20251029/annotation_features.geojson) [annotation_task_features.geojson](https://storage.googleapis.com/ai2-olmoearth-projects-public-data/projects/lfmc/20251029/annotation_task_features.geojson)]
+- rslearn dataset: https://storage.googleapis.com/ai2-olmoearth-projects-public-data/projects/lfmc/20251029/dataset.tar
 
 ## Model Details
 
@@ -21,7 +21,7 @@ mosaic per 14-day period.
 
 At each pixel, it regresses the LFMC of woody vegetation.
 
-It achieves a mean squared error of 580.5 on our validation set.
+It achieves a mean squared error of 580.6 on our test set.
 
 ## Training Data
 
