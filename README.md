@@ -10,6 +10,7 @@ The models available here are:
 - [Live Fuel Moisture Content Mapping](docs/lfmc.md)
 - [Forest Loss Driver Classification](docs/forest_loss_drivers.md)
 - [Mangrove Mapping](docs/mangrove.md)
+- [Ecosystem Type Mapping](docs/ecosystem_type_mapping.md)
 
 TODO: models we are not sure if we can release:
 
