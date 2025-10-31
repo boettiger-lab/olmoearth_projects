@@ -10,11 +10,20 @@ model:
               model_id: OLMOEARTH_V1_BASE
               patch_size: 4
         decoder:
-          - class_path: rslearn.models.pooling_decoder.SegmentationPoolingDecoder
+          - class_path: rslearn.models.upsample.Upsample
+            init_args:
+              scale_factor: 4
+          - class_path: rslearn.models.conv.Conv
             init_args:
               in_channels: 768
               out_channels: 110
-              image_key: sentinel2_l2a
+              kernel_size: 1
+              activation:
+                class_path: torch.nn.Identity
+          - class_path: rslearn.models.pick_features.PickFeatures
+            init_args:
+              indexes: [0]
+              collapse: true
           - class_path: rslearn.train.tasks.segmentation.SegmentationHead
     scheduler:
       class_path: rslearn.train.scheduler.PlateauScheduler
@@ -55,7 +64,6 @@ data:
     batch_size: 32
     num_workers: ${NUM_WORKERS}
     default_config:
-      groups: ["north_africa"]
       patch_size: 32
       transforms:
         - class_path: rslearn.models.olmoearth_pretrain.norm.OlmoEarthNormalize
@@ -63,12 +71,15 @@ data:
             band_names:
               sentinel2_l2a: ["B02", "B03", "B04", "B08", "B05", "B06", "B07", "B8A", "B11", "B12", "B01", "B09"]
     train_config:
+      groups: ["north_africa"]
       tags:
         split: "train"
     val_config:
+      groups: ["north_africa"]
       tags:
         split: "val"
     test_config:
+      groups: ["north_africa"]
       tags:
         split: "test"
     predict_config:
@@ -102,3 +113,4 @@ trainer:
         path: ${DATASET_PATH}
         output_layer: ${PREDICTION_OUTPUT_LAYER}
         selector: ["class"]
+# unused: ${EXTRA_FILES_PATH}
