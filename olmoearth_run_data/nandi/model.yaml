@@ -7,18 +7,24 @@ model:
         encoder:
           - class_path: rslearn.models.olmoearth_pretrain.model.OlmoEarth
             init_args:
-              checkpoint_path: ${EXTRA_FILES_PATH}/yawenzzzz/latent_mim_cross_random_per_modality_patchdisc_add_contrastive_0.1_1/step400000
-              random_initialization: true
-              selector: ["encoder"]
-              forward_kwargs:
-                patch_size: 1
+              model_id: OLMOEARTH_V1_BASE
+              patch_size: 1
         decoders:
-          class:
-            - class_path: rslearn.models.pooling_decoder.SegmentationPoolingDecoder
+          segment:
+            - class_path: rslearn.models.upsample.Upsample
+              init_args:
+                scale_factor: 1
+            - class_path: rslearn.models.conv.Conv
               init_args:
                 in_channels: 768
                 out_channels: 11
-                image_key: "sentinel2_l2a"
+                kernel_size: 1
+                activation:
+                  class_path: torch.nn.Identity
+            - class_path: rslearn.models.pick_features.PickFeatures
+              init_args:
+                indexes: [0]
+                collapse: true
             - class_path: rslearn.train.tasks.segmentation.SegmentationHead
     lr: 0.0001
     plateau: true
@@ -33,26 +39,28 @@ data:
     inputs:
       sentinel2_l2a:
         data_type: "raster"
-        layers: ["sentinel2", "sentinel2.1", "sentinel2.2", "sentinel2.3", "sentinel2.4", "sentinel2.5", "sentinel2.6", "sentinel2.7", "sentinel2.8", "sentinel2.9", "sentinel2.10", "sentinel2.11"]
+        layers: ["sentinel2"]
         bands: ["B02", "B03", "B04", "B08", "B05", "B06", "B07", "B8A", "B11", "B12", "B01", "B09"]
         passthrough: true
         dtype: FLOAT32
+        load_all_item_groups: true
         load_all_layers: true
       label:
         data_type: "raster"
-        layers: ["label_raster"]
-        bands: ["label"]
+        layers: ["label"]
+        bands: ["category"]
         is_target: true
         dtype: INT32
     task:
       class_path: rslearn.train.tasks.multi_task.MultiTask
       init_args:
         tasks:
-          class:
+          segment:
             class_path: rslearn.train.tasks.segmentation.SegmentationTask
             init_args:
               num_classes: 11
-              zero_is_invalid: true
+              zero_is_invalid: false
+              nodata_value: 10
               metric_kwargs:
                 average: "micro"
               other_metrics:
@@ -64,8 +72,26 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 1
+                    class_idx: 0
                 coffee_recall:
+                  class_path: rslearn.train.tasks.segmentation.SegmentationMetric
+                  init_args:
+                    metric:
+                      class_path: torchmetrics.classification.MulticlassRecall
+                      init_args:
+                        num_classes: 11
+                        average: null
+                    class_idx: 0
+                grassland_precision:
+                  class_path: rslearn.train.tasks.segmentation.SegmentationMetric
+                  init_args:
+                    metric:
+                      class_path: torchmetrics.classification.MulticlassPrecision
+                      init_args:
+                        num_classes: 11
+                        average: null
+                    class_idx: 1
+                grassland_recall:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
                     metric:
@@ -92,24 +118,6 @@ data:
                         num_classes: 11
                         average: null
                     class_idx: 2
-                grassland_precision:
-                  class_path: rslearn.train.tasks.segmentation.SegmentationMetric
-                  init_args:
-                    metric:
-                      class_path: torchmetrics.classification.MulticlassPrecision
-                      init_args:
-                        num_classes: 11
-                        average: null
-                    class_idx: 3
-                grassland_recall:
-                  class_path: rslearn.train.tasks.segmentation.SegmentationMetric
-                  init_args:
-                    metric:
-                      class_path: torchmetrics.classification.MulticlassRecall
-                      init_args:
-                        num_classes: 11
-                        average: null
-                    class_idx: 3
                 maize_precision:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -118,7 +126,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 4
+                    class_idx: 3
                 maize_recall:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -127,7 +135,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 4
+                    class_idx: 3
                 sugarcane_precision:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -136,7 +144,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 5
+                    class_idx: 4
                 sugarcane_recall:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -145,7 +153,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 5
+                    class_idx: 4
                 tea_precision:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -154,7 +162,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 6
+                    class_idx: 5
                 tea_recall:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -163,7 +171,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 6
+                    class_idx: 5
                 vegetables_precision:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -172,7 +180,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 7
+                    class_idx: 6
                 vegetables_recall:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -181,7 +189,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 7
+                    class_idx: 6
                 legumes_precision:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -190,7 +198,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 8
+                    class_idx: 7
                 legumes_recall:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -199,7 +207,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 8
+                    class_idx: 7
                 water_precision:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -208,7 +216,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 9
+                    class_idx: 8
                 water_recall:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -217,7 +225,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 9
+                    class_idx: 8
                 builtup_precision:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -226,7 +234,7 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 10
+                    class_idx: 9
                 builtup_recall:
                   class_path: rslearn.train.tasks.segmentation.SegmentationMetric
                   init_args:
@@ -235,54 +243,68 @@ data:
                       init_args:
                         num_classes: 11
                         average: null
-                    class_idx: 10
+                    class_idx: 9
         input_mapping:
-          class:
+          segment:
             label: "targets"
-    batch_size: 32
+    batch_size: 4
     num_workers: ${NUM_WORKERS}
     default_config:
       transforms:
         - class_path: rslearn.train.transforms.pad.Pad
           init_args:
-            size: 4
+            size: 31
             mode: "center"
-            image_selectors: ["sentinel2_l2a", "target/crop_type_classification/classes", "target/crop_type_classification/valid"]
+            image_selectors: ["sentinel2_l2a", "target/segment/classes", "target/segment/valid"]
+        - class_path: rslearn.train.transforms.crop.Crop
+          init_args:
+            crop_size: 16
+            image_selectors: ["sentinel2_l2a", "target/segment/classes", "target/segment/valid"]
         - class_path: rslearn.models.olmoearth_pretrain.norm.OlmoEarthNormalize
           init_args:
             band_names:
               sentinel2_l2a: ["B02", "B03", "B04", "B08", "B05", "B06", "B07", "B8A", "B11", "B12", "B01", "B09"]
     train_config:
-      groups: ["groundtruth_polygon_split_window_32", "worldcover_window_32"]
-      tags:
-        split: "train"
-    val_config:
-      groups: ["groundtruth_polygon_split_window_32", "worldcover_window_32"]
-      tags:
-        split: "val"
-    test_config:
-      groups: ["groundtruth_polygon_split_window_32", "worldcover_window_32"]
-      tags:
-        split: "val"
-    predict_config:
-      groups: ["nandi_county"]
-      load_all_patches: true
-      skip_targets: true
-      overlap_ratio: 0.75
-      patch_size: 4
       transforms:
         - class_path: rslearn.train.transforms.pad.Pad
           init_args:
-            size: 4
+            size: 31
             mode: "center"
-            image_selectors: ["sentinel2_l2a"]
+            image_selectors: ["sentinel2_l2a", "target/segment/classes", "target/segment/valid"]
+        - class_path: rslearn.train.transforms.crop.Crop
+          init_args:
+            crop_size: 16
+            image_selectors: ["sentinel2_l2a", "target/segment/classes", "target/segment/valid"]
+        - class_path: rslearn.train.transforms.flip.Flip
+          init_args:
+            image_selectors: ["sentinel2_l2a", "target/segment/classes", "target/segment/valid"]
+        - class_path: rslearn.models.olmoearth_pretrain.norm.OlmoEarthNormalize
+          init_args:
+            band_names:
+              sentinel2_l2a: ["B02", "B03", "B04", "B08", "B05", "B06", "B07", "B8A", "B11", "B12", "B01", "B09"]
+      groups: ["spatial_split"]
+      tags:
+        split: "train"
+    val_config:
+      groups: ["spatial_split"]
+      tags:
+        split: "val"
+    test_config:
+      groups: ["spatial_split"]
+      tags:
+        split: "val"
+    predict_config:
+      load_all_patches: true
+      patch_size: 16
+      overlap_ratio: 0.25  # 4 / 16
+      skip_targets: true
+      transforms:
         - class_path: rslearn.models.olmoearth_pretrain.norm.OlmoEarthNormalize
           init_args:
             band_names:
               sentinel2_l2a: ["B02", "B03", "B04", "B08", "B05", "B06", "B07", "B8A", "B11", "B12", "B01", "B09"]
 trainer:
   max_epochs: 100
-  default_root_dir: ${TRAINER_DATA_PATH}
   logger:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
@@ -295,19 +317,21 @@ trainer:
         logging_interval: "epoch"
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
+        dirpath: ${TRAINER_DATA_PATH}
         save_top_k: 1
         save_last: true
-        monitor: val_loss
-        mode: min
+        monitor: val_segment/accuracy
+        mode: max
     - class_path: rslearn.train.callbacks.freeze_unfreeze.FreezeUnfreeze
       init_args:
         module_selector: ["model", "encoder", 0]
-        unfreeze_at_epoch: 2
+        unfreeze_at_epoch: 20
+        unfreeze_lr_factor: 10
     - class_path: rslearn.train.prediction_writer.RslearnWriter
       init_args:
-        path: placeholder
+        path: ${DATASET_PATH}
         output_layer: ${PREDICTION_OUTPUT_LAYER}
-        selector: ["class"]
+        selector: ["segment"]
         merger:
           class_path: rslearn.train.prediction_writer.RasterMerger
           init_args:
