@@ -111,7 +111,7 @@ def _coerce_to_utc_iso(
         return None
 
     # Handle Unix timestamps (seconds or milliseconds)
-    if isinstance(dt, int | float) and not pd.isna(dt):
+    if isinstance(dt, (int | float)) and not pd.isna(dt):
         # Heuristic: if value > year 3000 in seconds, it's probably milliseconds
         if dt > 32503680000:  # Year 3000 in seconds
             dt = dt / 1000.0
@@ -202,8 +202,8 @@ def _coerce_numeric_or_none(val: Any) -> int | float | None:
         )
 
     # Python / NumPy numeric scalars
-    if isinstance(val, (int | float | _NUMERIC_NP_TYPES)):
-        return int(val) if isinstance(val, int | np.integer) else float(val)
+    if isinstance(val, (int, float) + _NUMERIC_NP_TYPES):
+        return int(val) if isinstance(val, (int | np.integer)) else float(val)
 
     # Try to parse numeric strings
     if isinstance(val, str):
@@ -254,7 +254,7 @@ def _create_task_geom(
             custom_taskgeom = gdf_task.geometry.iloc[0]
 
         # Validate that the custom_taskgeom is a Polygon or MultiPolygon
-        if not isinstance(custom_taskgeom, Polygon | MultiPolygon):
+        if not isinstance(custom_taskgeom, (Polygon | MultiPolygon)):
             raise ValueError(
                 f"Task geometry from taskgeom_col must be a Polygon or MultiPolygon, "
                 f"but got {custom_taskgeom.geom_type} for row id {id}. "

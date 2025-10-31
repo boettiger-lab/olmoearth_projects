@@ -42,18 +42,14 @@ The following script downloads the data from CalFire and prepares it for trainin
 First, set `SRC_DATA_DIR` to the directory where you want to store the downloaded CalFire dataset.
 ```shell
 export SRC_DATA_DIR=/path/to/your/data  # Replace with your desired data directory
-python3 ./docs/tutorials/FinetuneOlmoEarthSegmentation/adhoc_scripts/Calfire_data_prep.py --data-dir $SRC_DATA_DIR --gap_width 150
+python3 ./docs/tutorials/FinetuneOlmoEarthSegmentation/adhoc_scripts/Calfire_data_prep.py --data-dir $SRC_DATA_DIR --gap-width 150
 ```
 
-### 2b. Window (Task) Geometry Creation
+### 2b. Window Geometry Design
 
 To prepare the dataset for fine-tuning, we need to create spatiotemporal windows. A *window* roughly corresponds to a training or validation/test example. It defines a geographic area coupled with a time range over which we want the model to make predictions.
-> ---
-> **TODO**
-> - More clarity on task vs window
-> ---
 
-In our case, each window should be large enough to encompass its corresponding polygon, with a minimum size that ensures the model can receive a consistent input size. The following script creates windows with a minimum size of 128×128 pixels around each polygon, and stores it in the *task_geom* field.
+In our case, each window should be large enough to encompass its corresponding polygon, with a minimum size that ensures the model can receive a consistent input size. The following script creates windows with a minimum size of 128×128 pixels around each polygon, and stores it in the *task_geom* field, which will be used to build the windows
 
 **Note:** This step is specific to our use case, where polygons have varied shapes and sizes. If you're working with uniformly sized polygons or point data, you may prefer to use identical window sizes for all samples.
 ```shell
@@ -77,7 +73,7 @@ export PROJECT_PATH=./docs/tutorials/FinetuneOlmoEarthSegmentation/config
 python ./scripts/oer_annotation_creation.py $SRC_DATA_DIR/Calfp_2020-2025_bbox.gdb --outdir $PROJECT_PATH --id-col polygon_id --taskgeom-col task_geom
 ```
 
-### 2d. Window Creation
+### 2d. Building windows
 Now that our window and polygon geometries are ready for `olmoearth_run`, we need to specify how it should interpret them and build the associated dataset windows. This is configured in the `olmoearth_run.yaml` config file located [here](./FinetuneOlmoEarthSegmentation/config/olmoearth_run.yaml).
 
 For example, here's our window preparation configuration. The `PolygonToRasterWindowPreparer` class rasterizes our 'burnt' and 'unburnt' polygons onto the window/task footprints defined in step 2b. Since we want to fully leverage the resolution of Sentinel-2 data, we specify the `window_resolution` as 10m. Additionally, we configure a spatial split for our train/validation/test sets using a grid size of 1000 pixels (10km).
@@ -108,11 +104,11 @@ Now let's use `olmoearth_run` to build these windows:
 
 ```shell
 export OER_DATASET_PATH=/path/to/your/oerun_dataset/folder # Replace with desired dataset folder path
-python -m rslp.main olmoearth_run prepare_labeled_windows --project_path $PROJECT_PATH --scratch_path $OER_DATASET_PATH
+python -m olmoearth_projects.main olmoearth_run prepare_labeled_windows --project_path $PROJECT_PATH --scratch_path $OER_DATASET_PATH
 ```
 
 ### 2e. Remote Sensing Data
-At this point, we need to create a `dataset.json` file that defines our dataset schema: which layers exist, their type (raster/vector), formats, and optionally how to auto-populate them via a `data_source`.
+At this point, we need to create a `dataset.json` file that defines our dataset schema: which layers exist, their type (raster/vector), formats, and optionally how to auto-populate them via a `data_source`. This dataset.json file should live in our project path.
 
 In our case, we have created our windows and label layer in raster format, so we need to reflect this in the configuration. Additionally, we specify the remote sensing data we want to add to our dataset as a covariate: Sentinel-2.
 
@@ -176,10 +172,13 @@ In our case, we have created our windows and label layer in raster format, so we
 }
 ```
 
+You can find more information about how to set up your `dataset.json` config file [here](https://github.com/allenai/rslearn/blob/master/docs/DatasetConfig.md).
+
+
 Now let's launch the Sentinel-2 data fetching and stitching process to match our windows:
 
 ```shell
-python -m rslp.main olmoearth_run build_dataset_from_windows --project_path $PROJECT_PATH --scratch_path $OER_DATASET_PATH
+python -m olmoearth_projects.main olmoearth_run build_dataset_from_windows --project_path $PROJECT_PATH --scratch_path $OER_DATASET_PATH
 ```
 
 
@@ -187,21 +186,17 @@ python -m rslp.main olmoearth_run build_dataset_from_windows --project_path $PRO
 
 Four flavors of OlmoEarth are available on Hugging Face [here](https://huggingface.co/collections/allenai/olmoearth).
 
-Depending on the complexity of your task, your fine-tuning budget, and your GPU memory, you can select from different model sizes:
+Depending on the complexity of your task, your fine-tuning budget, and your GPU memory, you can select from different encoder model sizes:
 
-> ---
-> **TODO**
-> - Find parameter count for each model size
-> ---
 
-  - **OlmoEarth nano:** model_id: `OLMOEARTH_V1_NANO` | Num parameters: TBD
-  - **OlmoEarth tiny:** model_id: `OLMOEARTH_V1_TINY` | Num parameters: TBD
-  - **OlmoEarth base:** model_id: `OLMOEARTH_V1_BASE` | Num parameters: TBD
-  - **OlmoEarth large:** model_id: `OLMOEARTH_V1_LARGE` | Num parameters: TBD
+  - **OlmoEarth nano:** model_id: `OLMOEARTH_V1_NANO` | Num parameters: 1.4M
+  - **OlmoEarth tiny:** model_id: `OLMOEARTH_V1_TINY` | Num parameters: 6.2M
+  - **OlmoEarth base:** model_id: `OLMOEARTH_V1_BASE` | Num parameters: ~90M
+  - **OlmoEarth large:** model_id: `OLMOEARTH_V1_LARGE` | Num parameters: ~300M
 
 Now we need to design our model architecture, training loop, and evaluation metrics, and define how the data should be pre-processed and sent to the model. Behind the scenes, we use Lightning to coordinate and run the fine-tuning job. This allows us to configure every aspect of the job in a single configuration file.
 
-You can find the  `burn_scar_tutorial_model.yaml` file [here](./FinetuneOlmoEarthSegmentation/config/burn_scar_tutorial_model.yaml):
+You can find the full `model.yaml` file [here](./FinetuneOlmoEarthSegmentation/config/model.yaml):
 
 Here are a few noteworthy extracts.
 
@@ -267,7 +262,7 @@ You can find more information about how to set up the `model.yaml` config file [
 First, let's verify how many data points we have in our different splits:
 ```shell
 export GROUP_NAME="spatial_split_10km"  # Use the group name from your olmoearth_run.yaml
-find $OER_DATASET_PATH/windows/$GROUP_NAME -maxdepth 2 -name "metadata.json" -exec cat {} \; | grep -oE "train|val|test" | sort | uniq -c | awk 'BEGIN{printf "{"} {printf "%s\"%s\": %d", (NR>1?", ":""), $2, $1} END{print "}"}'
+find $OER_DATASET_PATH/dataset/windows/$GROUP_NAME -maxdepth 2 -name "metadata.json" -exec cat {} \; | grep -oE "train|val|test" | sort | uniq -c | awk 'BEGIN{printf "{"} {printf "%s\"%s\": %d", (NR>1?", ":""), $2, $1} END{print "}"}'
 ```
 
 Now let's fine-tune the model. Set up your environment variables and run the fine-tuning command:
@@ -276,26 +271,116 @@ export WANDB_PROJECT="oe_burn-scar-finetuning"  # Replace with your WandB projec
 export WANDB_NAME="burn-scar_seg_s2_p4_c128_unet_lr1e4"  # Replace with your experiment name
 export WANDB_ENTITY="your-wandb-entity"  # Replace with your WandB entity
 
-python -m rslp.main olmoearth_run finetune \
+python -m olmoearth_projects.main olmoearth_run finetune \
   --project_path $PROJECT_PATH \
   --scratch_path $OER_DATASET_PATH
 ```
 
+The model should reach ~96% F1 score after 30 epochs.
+
 
 ## 5. Running Inference With Your Fine-Tuned Model
 
-Once training is complete, you can use your fine-tuned model to run inference on new data:
+First let's create a `prediction_request_geometry.geojson` in our project folder to indicate our AOI (where we would like the model to make predictions). For this we use a window corresponding to a 'burnt' polygon from our test set:
 
+```json
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+                  [[-121.368852,38.875384],
+                    [-121.326357,38.875384],
+                    [-121.326357,38.901207],
+                    [-121.368852,38.901207],
+                    [-121.368852,38.875384]]
+                ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "oe_start_time": "2020-06-23T00:00:00+00:00",
+        "oe_end_time": "2020-07-23T00:00:00+00:00"
+      },
+      "type": "Feature"
+    }
+  ],
+  "type": "FeatureCollection"
+}
+
+```
+
+Let's add a few configuration lines to `olmoearth_run.yaml` to specify:
+- partition_strategies:
+  - partition_request_geometry: how to split the AOI into partitions
+  - prepare_window_geometries: how to create windows within partitions
+- postprocessing_strategies: how to merge results
+
+```yaml
+partition_strategies:
+  partition_request_geometry:
+    class_path: olmoearth_run.runner.tools.partitioners.grid_partitioner.GridPartitioner
+    init_args:
+      grid_size: 0.25 # (angle in degrees)
+
+  prepare_window_geometries:
+    class_path: olmoearth_run.runner.tools.partitioners.grid_partitioner.GridPartitioner
+    init_args:
+      grid_size: 1024 # (in pixels)
+      output_projection:
+        class_path: rslearn.utils.geometry.Projection
+        init_args:
+          crs: EPSG:3857
+          x_resolution: 10
+          y_resolution: -10
+      use_utm: true
+
+postprocessing_strategies:
+  process_dataset:
+    class_path: olmoearth_run.runner.tools.postprocessors.combine_geotiff.CombineGeotiff
+
+  process_partition:
+    class_path: olmoearth_run.runner.tools.postprocessors.combine_geotiff.CombineGeotiff
+
+```
+
+Finally, we specify how the dataloader should handle our prediction windows under the **data** section of our `model.yaml`.
+By default, our prediction windows will be automatically created under the group: "group_partition_0". We set `load_all_patches: true` so that each patch (of size 128) within our window is visited in a sliding window fashion, with an overlap of 12.5% between patches (or 16 pixels our of 128).
+```yaml
+    predict_config:
+      groups: ["group_partition_0"]
+      patch_size: 128
+      load_all_patches: true
+      overlap_ratio: 0.125  # 16 / 128
+      skip_targets: true
+```
+
+Now let's run the inference command:
 ```shell
-export CHECKPOINT_PATH=/path/to/your/best/checkpoint.ckpt  # Replace with path to your trained model
+unset TRAINER_DATA_PATH
+unset DATASET_PATH
+export CHECKPOINT_PATH=/path/to/your/best/checkpoint.ckpt  # Replace with path to your trained model, which by default should be located at ${OER_DATASET_PATH}/trainer_checkpoints/{your_desired_checkpoint}.ckpt
 
-python -m rslp.main olmoearth_run predict \
-  --project_path $PROJECT_PATH \
+python -m olmoearth_projects.main olmoearth_run olmoearth_run \
+  --config_path $PROJECT_PATH \
   --scratch_path $OER_DATASET_PATH \
   --checkpoint_path $CHECKPOINT_PATH
 ```
-> ---
-> **TODO**
-> - Inference pipeline using olmoearth_run
-> - Prediction visualization
-> ---
+
+By default, the predicted windows are mosaiced together in the results folder.
+We can now visualize our predictions:
+```
+qgis  ${OER_DATASET_PATH}/results/results_raster/{your_result_geotif}.tif
+```
+
+<p align="center">
+  <img src="./FinetuneOlmoEarthSegmentation/fire_pred.jpg" alt="Example windows" width="700">
+  <br>
+  <em>Figure 3: Fire perimeter prediction (left) and ground truth (right) on unseen window</em>
+</p>
+
+
+<p align="center">
+  <img src="./FinetuneOlmoEarthSegmentation/controlled_fire.png" alt="Example windows" width="350">
+  <br>
+  <em>Figure 4: Model picking up controlled fire (purple) at the edge <br> of the prediction window (light blue) months after it happened</em>
+</p>

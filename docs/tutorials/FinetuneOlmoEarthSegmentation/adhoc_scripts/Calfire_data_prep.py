@@ -20,7 +20,7 @@ import argparse
 import logging
 import zipfile
 from pathlib import Path
-from urllib.request import urlretrieve
+from urllib.request import Request, urlopen
 
 import geopandas as gpd
 import pandas as pd
@@ -92,7 +92,15 @@ def download_archive(download_url: str, download_dir: Path) -> Path:
     if not archive_path.exists():
         logging.info("Downloading CAL FIRE archive to %s", archive_path)
         try:
-            urlretrieve(download_url, archive_path)
+            # Create a request with proper headers to avoid 403 errors
+            headers = {
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+            request = Request(download_url, headers=headers)
+
+            # Download the file
+            with urlopen(request) as response, open(archive_path, "wb") as out_file:
+                out_file.write(response.read())
         except Exception as e:
             raise RuntimeError(
                 f"Failed to download archive from {download_url}: {e}"
