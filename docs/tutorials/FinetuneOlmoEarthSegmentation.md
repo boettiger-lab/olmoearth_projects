@@ -53,7 +53,7 @@ In our case, each window should be large enough to encompass its corresponding p
 
 **Note:** This step is specific to our use case, where polygons have varied shapes and sizes. If you're working with uniformly sized polygons or point data, you may prefer to use identical window sizes for all samples.
 ```shell
-python3 ./docs/tutorials/FinetuneOlmoEarthSegmentation/adhoc_scripts/Calfire_taskgeom_creation.py $SRC_DATA_DIR/Calfp_2020-2025.gdb --min_box_size_pix 128
+python3 ./docs/tutorials/FinetuneOlmoEarthSegmentation/adhoc_scripts/Calfire_taskgeom_creation.py $SRC_DATA_DIR/label_data/Calfire_2020-2025.gdb --min_box_size_pix 128
 ```
 
 <p align="center">
@@ -70,7 +70,7 @@ We specify the window/task geometry column created in step 2b using the `--taskg
 First, set `PROJECT_PATH` to the directory where you want to store the project configuration files.
 ```shell
 export PROJECT_PATH=./docs/tutorials/FinetuneOlmoEarthSegmentation/config
-python ./scripts/oer_annotation_creation.py $SRC_DATA_DIR/Calfp_2020-2025_bbox.gdb --outdir $PROJECT_PATH --id-col polygon_id --taskgeom-col task_geom
+python ./scripts/oer_annotation_creation.py $SRC_DATA_DIR/label_data/Calfire_2020-2025.gdb --outdir $PROJECT_PATH --id-col polygon_id --taskgeom-col geometry
 ```
 
 ### 2d. Building windows
@@ -103,7 +103,8 @@ window_prep:
 Now let's use `olmoearth_run` to build these windows:
 
 ```shell
-export OER_DATASET_PATH=/path/to/your/oerun_dataset/folder # Replace with desired dataset folder path
+#export OER_DATASET_PATH=$(pwd)/docs/tutorials/FinetuneOlmoEarthSegmentation/config/ #/path/to/your/oerun_dataset/folder # Replace with desired dataset folder path
+export OER_DATASET_PATH=$HOME/datasets
 python -m olmoearth_projects.main olmoearth_run prepare_labeled_windows --project_path $PROJECT_PATH --scratch_path $OER_DATASET_PATH
 ```
 
@@ -178,7 +179,7 @@ You can find more information about how to set up your `dataset.json` config fil
 Now let's launch the Sentinel-2 data fetching and stitching process to match our windows:
 
 ```shell
-python -m olmoearth_projects.main olmoearth_run build_dataset_from_windows --project_path $PROJECT_PATH --scratch_path $OER_DATASET_PATH
+python -m olmoearth_projects.main olmoearth_run build_dataset_from_windows --project_path $PROJECT_PATH --scratch_path ~/datasets # $OER_DATASET_PATH
 ```
 
 
