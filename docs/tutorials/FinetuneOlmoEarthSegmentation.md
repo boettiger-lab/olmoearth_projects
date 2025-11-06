@@ -105,6 +105,7 @@ Now let's use `olmoearth_run` to build these windows:
 ```shell
 #export OER_DATASET_PATH=$(pwd)/docs/tutorials/FinetuneOlmoEarthSegmentation/config/ #/path/to/your/oerun_dataset/folder # Replace with desired dataset folder path
 export OER_DATASET_PATH=$HOME/datasets
+cp $PROJECT_PATH/annotation*.geojson $OER_DATASET_PATH
 python -m olmoearth_projects.main olmoearth_run prepare_labeled_windows --project_path $PROJECT_PATH --scratch_path $OER_DATASET_PATH
 ```
 
@@ -179,7 +180,17 @@ You can find more information about how to set up your `dataset.json` config fil
 Now let's launch the Sentinel-2 data fetching and stitching process to match our windows:
 
 ```shell
-python -m olmoearth_projects.main olmoearth_run build_dataset_from_windows --project_path $PROJECT_PATH --scratch_path ~/datasets # $OER_DATASET_PATH
+# 
+cp docs/tutorials/FinetuneOlmoEarthSegmentation/config/model.yaml  $OER_DATASET_PATH
+cp docs/tutorials/FinetuneOlmoEarthSegmentation/config/dataset.json  $OER_DATASET_PATH
+cp docs/tutorials/FinetuneOlmoEarthSegmentation/config/dataset.json  $OER_DATASET_PATH/dataset/config.json
+
+
+
+export PROJECT_PATH=./docs/tutorials/FinetuneOlmoEarthSegmentation/config
+export OER_DATASET_PATH=$HOME/datasets
+
+python -m olmoearth_projects.main olmoearth_run build_dataset_from_windows --project_path $PROJECT_PATH --scratch_path $OER_DATASET_PATH
 ```
 
 
